@@ -11,7 +11,6 @@
 
 <meta name="author" content="Charles T. Gray" />
 
-<meta name="date" content="2017-07-11" />
 
 <title>Single-study data</title>
 
@@ -119,7 +118,7 @@ $(document).ready(function () {
 
 <h1 class="title toc-ignore">Single-study data</h1>
 <h4 class="author"><em>Charles T. Gray</em></h4>
-<h4 class="date"><em>07/11/2017</em></h4>
+<h4 class="date"><em>Tuesday 7 November 2017</em></h4>
 
 </div>
 
@@ -155,10 +154,6 @@ distributions &lt;- distributions %&gt;%
           rpar1 =  50,
           rpar2 = 17)
 
-# Add distributions with three parameters.
-# distributions &lt;- distributions %&gt;% 
-#   mutate(rpar3 = list(rep(NULL, nrow(distributions))))
-
 # Take a look.
 distributions %&gt;% knitr::kable()</code></pre>
 <table>
@@ -184,14 +179,16 @@ distributions %&gt;% knitr::kable()</code></pre>
 </table>
 <pre class="r"><code>devtools::use_data(distributions, overwrite = TRUE)</code></pre>
 <pre><code>## Saving distributions as distributions.rda to /Users/puzzlebox/Documents/metamedian/data</code></pre>
-<div id="see-distributions." class="section level3">
-<h3>See distributions.</h3>
+<div id="see-distributions" class="section level3">
+<h3>See distributions</h3>
 </div>
-<div id="add-sample-sizes." class="section level3">
-<h3>Add sample sizes.</h3>
+<div id="add-sample-sizes" class="section level3">
+<h3>Add sample sizes</h3>
 <pre class="r"><code>sample_sizes &lt;- c(15, 60, 100)
 
-ss_data &lt;- distributions %&gt;% 
+devtools::use_data(sample_sizes, overwrite = TRUE)</code></pre>
+<pre><code>## Saving sample_sizes as sample_sizes.rda to /Users/puzzlebox/Documents/metamedian/data</code></pre>
+<pre class="r"><code>ss_data &lt;- distributions %&gt;% 
   mutate(n = sample_sizes[1])
 
 i &lt;- 2
@@ -228,14 +225,46 @@ distributions %&gt;% knitr::kable()</code></pre>
 </table>
 </div>
 </div>
-<div id="generate-trials." class="section level2">
-<h2>Generate trials.</h2>
+<div id="generate-trials" class="section level2">
+<h2>Generate trials</h2>
 <pre class="r"><code>ss_data &lt;- tibble(
   rdist = rep(ss_data$rdist, each = trials),
   rpar1 = rep(ss_data$rpar1, each = trials),
   rpar2 = rep(ss_data$rpar2, each = trials),
   n = rep(ss_data$n, each = trials)
 )</code></pre>
+</div>
+<div id="generate-samples" class="section level1">
+<h1>Generate samples</h1>
+<pre class="r"><code>ss_data &lt;- ss_data %&gt;%
+  mutate(sample = pmap(
+    .l = list(rdist,
+              rpar1,
+              rpar2,
+              n),
+    .f = function(rdist, rpar1, rpar2, n) {
+      dontpanic::get_sample(n = n,
+                            dist = rdist,
+                            par = c(rpar1, rpar2))
+    }
+  ))</code></pre>
+</div>
+<div id="calculate-summary-statistics" class="section level1">
+<h1>Calculate summary statistics</h1>
+<pre class="r"><code>ss_data &lt;- ss_data %&gt;% 
+  mutate(
+    min = map_dbl(sample, min),
+    first_q = map_dbl(sample, quantile, probs = 0.25),
+    median = map_dbl(sample, median),
+    third_q = map_dbl(sample, quantile, probs = 0.75),
+    max = map_dbl(sample, max),
+    iqr = third_q - first_q,
+    mean = map_dbl(sample, mean),
+    sd = map_dbl(sample, sd)
+  ) %&gt;% # Remove 
+  select(-sample)</code></pre>
+<pre class="r"><code>devtools::use_data(ss_data, overwrite = TRUE)</code></pre>
+<pre><code>## Saving ss_data as ss_data.rda to /Users/puzzlebox/Documents/metamedian/data</code></pre>
 </div>
 
 
