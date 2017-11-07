@@ -127,6 +127,12 @@ $(document).ready(function () {
 %\VignetteEngine{knitr}
 %\VignetteIndexEntry{Single study data} 
 -->
+<div id="tasks" class="section level2">
+<h2>Tasks</h2>
+<ul>
+<li>Plot distributions.</li>
+</ul>
+</div>
 <div id="set-number-of-trials" class="section level2">
 <h2>Set number of trials</h2>
 <pre class="r"><code>trials &lt;- 10 # For testing.
@@ -181,6 +187,9 @@ distributions %&gt;% knitr::kable()</code></pre>
 <pre><code>## Saving distributions as distributions.rda to /Users/puzzlebox/Documents/metamedian/data</code></pre>
 <div id="see-distributions" class="section level3">
 <h3>See distributions</h3>
+<pre class="r"><code>see_dist &lt;- function(rdist = &quot;lnorm&quot;, pars = c(2, 1)) {
+  # ToDo: Create plotting function.
+}</code></pre>
 </div>
 <div id="add-sample-sizes" class="section level3">
 <h3>Add sample sizes</h3>
@@ -261,7 +270,7 @@ distributions %&gt;% knitr::kable()</code></pre>
     iqr = third_q - first_q,
     mean = map_dbl(sample, mean),
     sd = map_dbl(sample, sd)
-  ) %&gt;% # Remove 
+  ) %&gt;% # Remove samples variable to reduce bulk. 
   select(-sample)</code></pre>
 <pre class="r"><code>devtools::use_data(ss_data, overwrite = TRUE)</code></pre>
 <pre><code>## Saving ss_data as ss_data.rda to /Users/puzzlebox/Documents/metamedian/data</code></pre>

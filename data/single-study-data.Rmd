@@ -20,6 +20,10 @@ rm(list = ls())
 
 ```
 
+## Tasks
+
+- Plot distributions.
+
 ## Set number of trials
 
 ```{r Set trials}
@@ -62,6 +66,14 @@ devtools::use_data(distributions, overwrite = TRUE)
 ```
 
 ### See distributions
+
+```{r See distributions}
+see_dist <- function(rdist = "lnorm", pars = c(2, 1)) {
+  # ToDo: Create plotting function.
+}
+
+```
+
 
 ### Add sample sizes
 
@@ -130,7 +142,7 @@ ss_data <- ss_data %>%
     iqr = third_q - first_q,
     mean = map_dbl(sample, mean),
     sd = map_dbl(sample, sd)
-  ) %>% # Remove 
+  ) %>% # Remove samples variable to reduce bulk. 
   select(-sample)
 
 ```
