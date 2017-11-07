@@ -7,7 +7,7 @@ title: "Single-study data"
 author: "Charles T. Gray"
 date: `r dontpanic::title_date()`
 vignette: >
-  %\VignetteIndexEntry{Single study data}
+  %\VignetteIndexEntry{Single study data generations}
   %\VignetteEngine{knitr::rmarkdown}
 ---
 

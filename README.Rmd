@@ -14,7 +14,13 @@ knitr::opts_chunk$set(
 
 # metamedian
 
-The goal of metamedian is to ...
+The goal of metamedian is to provide a method of estimating the approximate variance of the sample median provided with summary statistics.
+
+The function takes the arguments sample size $n$, along with sample summary statistics taken from one of the following sets: $C_1 := \{a, m, b\}$, $C_2 := \{q_1, m, q_3 \}$, or $C_3 := \{a, q_1, m, q_3, b\}$.
+
+From these known sample summary statistics, the variance of the sample median is estimated.
+
+This package will also include the analysis and comparison with existing estimators.
 
 ## Installation
 
