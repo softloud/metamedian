@@ -1,0 +1,105 @@
+<!-- 
+%\VignetteEngine{knitr}
+%\VignetteIndexEntry{Single study data} 
+-->
+---
+title: "Single-study data"
+author: "Charles T. Gray"
+date: "07/11/2017"
+vignette: >
+  %\VignetteIndexEntry{Single study data}
+  %\VignetteEngine{knitr::rmarkdown}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
+rm(list = ls())
+
+```
+
+## Set number of trials
+
+```{r Set trials}
+trials <- 10 # For testing.
+# trials <- 1000 
+
+```
+
+## Set distributions
+
+We want to generate summary statistics from various distributions.
+
+```{r Set distributions}
+# Create a tibble with a variable for distribution and one for parameters. Since parameters have varying lengths and names, it will be a list object.
+
+distributions <- tibble(
+  rdist = character(),
+  rpar1 = list()
+) 
+
+# Add distributions with one parameter.
+distributions <- distributions %>% 
+  add_row(rdist = "exp",
+          rpar1 = 1)
+
+# Add distributions with two parameters.
+distributions <- distributions %>% 
+  mutate(rpar2 = list(rep(NULL, nrow(distributions)))) %>% 
+  add_row(rdist = "norm",
+          rpar1 =  50,
+          rpar2 = 17)
+
+# Add distributions with three parameters.
+# distributions <- distributions %>% 
+#   mutate(rpar3 = list(rep(NULL, nrow(distributions))))
+
+# Take a look.
+distributions %>% knitr::kable()
+```
+
+```{r Write distributions to package}
+devtools::use_data(distributions, overwrite = TRUE)
+
+```
+
+### See distributions.
+
+### Add sample sizes.
+
+```{r Set samples sizes.}
+sample_sizes <- c(15, 60, 100)
+
+ss_data <- distributions %>% 
+  mutate(n = sample_sizes[1])
+
+i <- 2
+
+while (i < length(sample_sizes)) {
+  ss_data <- rbind(ss_data,
+                   distributions %>% 
+                     mutate(n = sample_sizes[i]))
+  i <- i + 1
+}
+
+# Take a look.
+distributions %>% knitr::kable()
+
+```
+
+
+##  Generate trials.
+
+```{r Generate trials dataset}
+ss_data <- tibble(
+  rdist = rep(ss_data$rdist, each = trials),
+  rpar1 = rep(ss_data$rpar1, each = trials),
+  rpar2 = rep(ss_data$rpar2, each = trials),
+  n = rep(ss_data$n, each = trials)
+)
+
+```
+
+
