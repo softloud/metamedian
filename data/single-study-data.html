@@ -234,7 +234,8 @@ sample_summary &lt;- function(sample) {
     third_q = quantile(sample, probs = 0.75),
     max = max(sample),
     mean = mean(sample),
-    sd = sd(sample)
+    sd = sd(sample),
+    n = length(sample)
   ) %&gt;%
     mutate(iqr = third_q - first_q)
 }

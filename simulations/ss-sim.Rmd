@@ -15,6 +15,8 @@ rm(list = ls())
 library(metamedian)
 library(tidyverse)
 
+data(ss_data)
+
 ```
 
 # Tasks
@@ -26,11 +28,29 @@ library(tidyverse)
 ## Get data
 
 ```{r Get data}
-ss_sim <- ss_data %>% 
-  mutate()
+get_effect <- function(this_tibble) {
+  effect_sd(
+    centre = this_tibble$median,
+    spread = this_tibble$iqr,
+    n = this_tibble$n,
+    centre_type = "median",
+    spread_type = "iqr"
+  )
+}
 
+ss_sim <- ss_data %>%
+  mutate(
+    arm_1_sd = map_dbl(sample_stats_1, get_effect),
+    arm_2_sd = map_dbl(sample_stats_2, get_effect)
+  )
 
 ```
 
 
+```{r Calculate effects}
+
+ss_sim <- ss_sim %>% 
+  mutate()
+
+```
 
