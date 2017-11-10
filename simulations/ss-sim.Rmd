@@ -1,0 +1,36 @@
+---
+title: "Single-study simulation"
+author: "Trouble"
+date: "09/11/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Clear the environment.
+rm(list = ls())
+
+# Packages.
+library(metamedian)
+library(tidyverse)
+
+```
+
+# Tasks
+
+# Objective
+
+# Simulation
+
+## Get data
+
+```{r Get data}
+ss_sim <- ss_data %>% 
+  mutate()
+
+
+```
+
+
+

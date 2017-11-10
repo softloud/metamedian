@@ -15,6 +15,7 @@ vignette: >
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+library(metamean)
 
 rm(list = ls())
 
@@ -23,6 +24,8 @@ rm(list = ls())
 ## Tasks
 
 - Plot distributions.
+- Rewrite open with `purrr::cross`; it's going to drive me crazy until I do. 
+- Document all datasets stored using `use_data` in this sheet.
 
 ## Set number of trials
 
@@ -32,90 +35,62 @@ trials <- 10 # For testing.
 
 ```
 
+# Generate data
+
+We want to generate summary statistics of samples drawn from various distributions.
+
 ## Set distributions
 
-We want to generate summary statistics from various distributions.
-
-```{r Set distributions}
-# Create a tibble with a variable for distribution and one for parameters. Since parameters have varying lengths and names, it will be a list object.
-
-distributions <- tibble(
-  rdist = character(),
-  rpar1 = list()
+```{r}
+distributions <- list(
+  list(rdist = "norm",
+       rpars = list(mean = 50, sd = 17)),
+  list(rdist = "lnorm",
+       rpars = list(meanlog = 4, meansd = 0.3)),
+  list(rdist = "beta",
+       rpars = list(9, 4)),
+  list(rdist = "exp",
+       rpars = 10),
+  list(rdist = "weibull",
+       rpars = c(2, 35))
 ) 
-
-# Add distributions with one parameter.
-distributions <- distributions %>% 
-  add_row(rdist = "exp",
-          rpar1 = 1)
-
-# Add distributions with two parameters.
-distributions <- distributions %>% 
-  mutate(rpar2 = list(rep(NULL, nrow(distributions)))) %>% 
-  add_row(rdist = "norm",
-          rpar1 =  50,
-          rpar2 = 17)
-
-# Take a look.
-distributions %>% knitr::kable()
 ```
 
-```{r Write distributions to package}
-devtools::use_data(distributions, overwrite = TRUE)
+## Create trials
 
-```
+```{r Generated data}
 
-### See distributions
+# Set parameter sets.
+ss_data <- cross(list(
+  trial = seq(1, trials),
+  n = c(15, 60, 100),
+  distributions = distributions
+))
 
-```{r See distributions}
-see_dist <- function(rdist = "lnorm", pars = c(2, 1)) {
-  # ToDo: Create plotting function.
-}
-
-```
-
-
-### Add sample sizes
-
-```{r Set samples sizes.}
-sample_sizes <- c(15, 60, 100)
-
-devtools::use_data(sample_sizes, overwrite = TRUE)
-
-ss_data <- distributions %>% 
-  mutate(n = sample_sizes[1])
-
-i <- 2
-
-while (i < length(sample_sizes)) {
-  ss_data <- rbind(ss_data,
-                   distributions %>% 
-                     mutate(n = sample_sizes[i]))
-  i <- i + 1
-}
-
-# Take a look.
-distributions %>% knitr::kable()
-
-```
-
-##  Generate trials
-
-```{r Generate trials dataset}
+# Initialise simulation tibble.
 ss_data <- tibble(
-  rdist = rep(ss_data$rdist, each = trials),
-  rpar1 = rep(ss_data$rpar1, each = trials),
-  rpar2 = rep(ss_data$rpar2, each = trials),
-  n = rep(ss_data$n, each = trials)
-)
+  rdist = map(ss_data, c("distributions", "rdist")),
+  rpars = map(ss_data, c("distributions", "rpars")),
+  n = map(ss_data, "n")
+) %>%
+  mutate(true_median = # Calculate true median.
+           pmap_dbl(
+    list(dist = rdist, par = rpars),
+    .f = dontpanic::any_dist,
+    x = 0.5
+  ), # Create adjustment on first parameter for different arms.
+  rpar1_adj = map_dbl(rpars, 1) + map_dbl(rpars, 1) / 2,
+  rpar1 = map_dbl(rpars, 1),
+  rpar2 = map(rpars, 2)
+  )
 
 ```
 
-# Generate samples
+## Generate samples
 
 ```{r Generate samples}
 ss_data <- ss_data %>%
-  mutate(sample = pmap(
+  mutate(sample_1 = pmap(
     .l = list(rdist,
               rpar1,
               rpar2,
@@ -125,29 +100,76 @@ ss_data <- ss_data %>%
                             dist = rdist,
                             par = c(rpar1, rpar2))
     }
-  ))
+  ),
+  sample_2_adj = pmap(
+    .l = list(rdist,
+              rpar1_adj,
+              rpar2,
+              n),
+    .f = function(rdist, rpar1_adj, rpar2, n) {
+      dontpanic::get_sample(n = n,
+                            dist = rdist,
+                            par = c(rpar1_adj, rpar2))
+    }
+  ),
+    sample_2_null = pmap(
+    .l = list(rdist,
+              rpar1,
+              rpar2,
+              n),
+    .f = function(rdist, rpar1, rpar2, n) {
+      dontpanic::get_sample(n = n,
+                            dist = rdist,
+                            par = c(rpar1, rpar2))
+    }
+  )
+  )
 
 ```
 
 # Calculate summary statistics
 
 ```{r Summary statistics}
-ss_data <- ss_data %>% 
+# Function to produce a summary tibble from a sample.
+sample_summary <- function(sample) {
+  tibble(
+    min = min(sample),
+    first_q = quantile(sample, probs = 0.25),
+    median = median(sample),
+    third_q = quantile(sample, probs = 0.75),
+    max = max(sample),
+    mean = mean(sample),
+    sd = sd(sample)
+  ) %>%
+    mutate(iqr = third_q - first_q)
+}
+
+# Create summary variables for both arms.
+ss_data <- ss_data %>%
   mutate(
-    min = map_dbl(sample, min),
-    first_q = map_dbl(sample, quantile, probs = 0.25),
-    median = map_dbl(sample, median),
-    third_q = map_dbl(sample, quantile, probs = 0.75),
-    max = map_dbl(sample, max),
-    iqr = third_q - first_q,
-    mean = map_dbl(sample, mean),
-    sd = map_dbl(sample, sd)
-  ) %>% # Remove samples variable to reduce bulk. 
-  select(-sample)
+    sample_stats_1 = map(sample_1, sample_summary),
+    sample_stats_2_null = map(sample_2_null, sample_summary),
+    sample_stats_2_adj = map(sample_2_adj, sample_summary)
+  ) %>%
+  select(-sample_1,-sample_2_null,-sample_2_adj)
 
 ```
 
+```{r Gather}
+ss_data <- ss_data %>% 
+  gather(key = "arm_adj",
+         value = "sample_stats_2",
+         sample_stats_2_adj, sample_stats_2_null)
+```
+
+
 ```{r Write ss data to package}
+ss_par <- list(
+  distributions,
+  trials 
+)
+
+devtools::use_data(ss_par, overwrite = TRUE)
 devtools::use_data(ss_data, overwrite = TRUE)
 ```
 
