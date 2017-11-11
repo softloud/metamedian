@@ -165,9 +165,8 @@ ss_data &lt;- cross(list(
   trial = seq(1, trials),
   n = c(15, 60, 100),
   distributions = distributions
-))
-
-# Initialise simulation tibble.
+))</code></pre>
+<pre class="r"><code># Initialise simulation tibble.
 ss_data &lt;- tibble(
   rdist = map_chr(ss_data, c(&quot;distributions&quot;, &quot;rdist&quot;)),
   rpars = map(ss_data, c(&quot;distributions&quot;, &quot;rpars&quot;)),
@@ -179,7 +178,7 @@ ss_data &lt;- tibble(
     .f = dontpanic::any_dist,
     x = 0.5
   ), # Create adjustment on first parameter for different arms.
-  rpar1_adj = map_dbl(rpars, 1) + map_dbl(rpars, 1) / 2,
+  rpar1_adj = map_dbl(rpars, 1) + 0.1,
   rpar1 = map_dbl(rpars, 1),
   rpar2 = map(rpars, 2)
   )</code></pre>

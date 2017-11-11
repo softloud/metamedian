@@ -82,7 +82,7 @@ ss_data <- tibble(
     .f = dontpanic::any_dist,
     x = 0.5
   ), # Create adjustment on first parameter for different arms.
-  rpar1_adj = map_dbl(rpars, 1) + map_dbl(rpars, 1) / 2,
+  rpar1_adj = map_dbl(rpars, 1) + 0.1,
   rpar1 = map_dbl(rpars, 1),
   rpar2 = map(rpars, 2)
   )
