@@ -58,8 +58,7 @@ distributions <- list(
 
 ## Create trials
 
-```{r Generated data}
-
+```{r}
 # Set parameter sets.
 ss_data <- cross(list(
   trial = seq(1, trials),
@@ -67,6 +66,10 @@ ss_data <- cross(list(
   distributions = distributions
 ))
 
+```
+
+
+```{r Generated data}
 # Initialise simulation tibble.
 ss_data <- tibble(
   rdist = map_chr(ss_data, c("distributions", "rdist")),

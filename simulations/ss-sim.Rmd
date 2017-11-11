@@ -48,54 +48,120 @@ ss_sim <- ss_data %>%
 
 
 ```{r Calculate effects}
-ss_sim <- ss_sim %>% 
-  mutate(m = map_dbl(sample_stats_1, "median"),
-         m_var = arm_1_sd^2,
-         md = map_dbl(sample_stats_1, "median") - map_dbl(sample_stats_2, "median"),
-         md_var = arm_1_sd^2 + arm_2_sd^2,
-         lr = log(map_dbl(sample_stats_1, "median") / 
-                    map_dbl(sample_stats_2, "median")),
-         lr_var = arm_1_sd^2 / map_dbl(sample_stats_1, "median")^2 +
-           arm_2_sd^2 / map_dbl(sample_stats_2, "median")^2)
+ss_sim <- ss_sim %>%
+  mutate(
+    m = map_dbl(sample_stats_1, "median"),
+    m_var = arm_1_sd ^ 2,
+    md = map_dbl(sample_stats_1, "median") - map_dbl(sample_stats_2, "median"),
+    md_var = arm_1_sd ^ 2 + arm_2_sd ^ 2,
+    lr = log(
+      map_dbl(sample_stats_1, "median") /
+        map_dbl(sample_stats_2, "median")
+    ),
+    lr_var = arm_1_sd ^ 2 / map_dbl(sample_stats_1, "median") ^ 2 +
+      arm_2_sd ^ 2 / map_dbl(sample_stats_2, "median") ^ 2
+  )
 ```
 
 ```{r Bundle effects gather}
 ss_sim <- ss_sim %>% # Bundle measures of centre.
-  mutate(effect_all = pmap(list(m, md, lr), .f = function(x, y, z) {
-    tibble(m = x,
-           md = y,
-           lr = z)
-  }) 
-  # ,
-  # effect_var = pmap(list(m_var, md_var, lr_var), .f = function(x, y, z) { # Bundle measures of spread.
-  #   tibble(m = x,
-  #          md = y,
-  #          lr = z)
-  # })
-  ) %>% 
-  select(-m, -md, -lr,
-         # -m_var, -md_var, -lr_var
-         ) %>% 
+  mutate(effect_all = pmap(
+    list(m, md, lr),
+    .f = function(x, y, z) {
+      tibble(m = x,
+             md = y,
+             lr = z)
+    }
+  )) %>%
+  select(-m,-md,-lr,) %>%
   gather(key = "measure",
          value = "effect_var",
-         m_var, md_var, lr_var) %>% 
-  mutate(
-    measure = stringr::str_replace_all(measure, "_var", "")
-  )
+         m_var, md_var, lr_var) %>%
+  mutate(measure = stringr::str_replace_all(measure, "_var", ""),
+         arm_adj = stringr::str_replace_all(arm_adj, "sample_stats_2_", ""))
 
 ```
 
 ```{r Extract effect}
 # Extract effect, depending on measure.
 ss_sim <- ss_sim %>% 
-  mutate(test = 
+  mutate(effect = 
            map2_dbl(measure, 
                     effect_all, 
                     .f = function(this_measure, effect_df) {
                       effect_df[this_measure] %>% as.numeric()
                     })
          )
+```
+
+```{r Confidence intervals}
+# Calculate confidence intervals.
+ss_sim <- ss_sim %>% 
+  mutate(
+    ci_lb = effect - qnorm(0.975) * sqrt(effect_var),
+    ci_ub = effect + qnorm(0.975) * sqrt(effect_var),
+    # true_median_adj = 
+    #   pmap_dbl(list(
+    #     rdist,
+    #     rpar1_adj,
+    #     rpar2
+    #   ), .f =
+    #     function(x, y, z){
+    #       dontpanic::any_dist(
+    #         0.5,
+    #         dist = x,
+    #         par = list(y, z),
+    #         type = "q"
+    #       )
+    #     } ),
+    interval_width = ci_ub - ci_lb
+    )
 
 ```
 
+
+This is tricky because I need the adjustment variable to be conditional on the value of the `arm_adj` variable.
+
+I'm going to try using predicate `.p` arguments for the firs time. This goes into the `map_if()` function. 
+
+```{r Calculate true md and lr}
+# Calculate true md and lr.
+
+# First I need to create something I can pass into the first arg.
+
+# How to do this the tidy way?
+ss_sim$rpar1_arg <- c()
+ss_sim$rpar1_arg[
+  ss_sim$arm_adj == "adj"
+] <- ss_sim$rpar1_adj[
+  ss_sim$arm_adj == "adj"
+]
+
+ss_sim$rpar1_arg[
+  ss_sim$arm_adj == "adj"
+] <- ss_sim$rpar1_adj[
+  ss_sim$arm_adj == "adj"
+]
+
+
+```
+```{r Get other median}
+ss_sim <- ss_sim %>% 
+  mutate(true_median_2 = pmap_dbl(
+    .l = list(
+      dist = rdist,
+      rpar1_arg,
+      rpar2
+    ), 
+    .f = function(dist, par1, par2) {
+      dontpanic::any_dist(x = 0.5,
+                          dist = dist,
+                          par = list(
+                            par1,
+                            par2
+                          ),
+                          type = "q")
+    }
+  ))
+```
 
