@@ -69,7 +69,7 @@ ss_data <- cross(list(
 
 # Initialise simulation tibble.
 ss_data <- tibble(
-  rdist = map(ss_data, c("distributions", "rdist")),
+  rdist = map_chr(ss_data, c("distributions", "rdist")),
   rpars = map(ss_data, c("distributions", "rpars")),
   n = map(ss_data, "n")
 ) %>%

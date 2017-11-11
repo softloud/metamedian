@@ -29,7 +29,7 @@ data(ss_data)
 
 ```{r Get data}
 get_effect <- function(this_tibble) {
-  effect_sd(
+  metamedian::effect_sd(
     centre = this_tibble$median,
     spread = this_tibble$iqr,
     n = this_tibble$n,
@@ -48,9 +48,54 @@ ss_sim <- ss_data %>%
 
 
 ```{r Calculate effects}
-
 ss_sim <- ss_sim %>% 
-  mutate()
+  mutate(m = map_dbl(sample_stats_1, "median"),
+         m_var = arm_1_sd^2,
+         md = map_dbl(sample_stats_1, "median") - map_dbl(sample_stats_2, "median"),
+         md_var = arm_1_sd^2 + arm_2_sd^2,
+         lr = log(map_dbl(sample_stats_1, "median") / 
+                    map_dbl(sample_stats_2, "median")),
+         lr_var = arm_1_sd^2 / map_dbl(sample_stats_1, "median")^2 +
+           arm_2_sd^2 / map_dbl(sample_stats_2, "median")^2)
+```
+
+```{r Bundle effects gather}
+ss_sim <- ss_sim %>% # Bundle measures of centre.
+  mutate(effect_all = pmap(list(m, md, lr), .f = function(x, y, z) {
+    tibble(m = x,
+           md = y,
+           lr = z)
+  }) 
+  # ,
+  # effect_var = pmap(list(m_var, md_var, lr_var), .f = function(x, y, z) { # Bundle measures of spread.
+  #   tibble(m = x,
+  #          md = y,
+  #          lr = z)
+  # })
+  ) %>% 
+  select(-m, -md, -lr,
+         # -m_var, -md_var, -lr_var
+         ) %>% 
+  gather(key = "measure",
+         value = "effect_var",
+         m_var, md_var, lr_var) %>% 
+  mutate(
+    measure = stringr::str_replace_all(measure, "_var", "")
+  )
 
 ```
+
+```{r Extract effect}
+# Extract effect, depending on measure.
+ss_sim <- ss_sim %>% 
+  mutate(test = 
+           map2_dbl(measure, 
+                    effect_all, 
+                    .f = function(this_measure, effect_df) {
+                      effect_df[this_measure] %>% as.numeric()
+                    })
+         )
+
+```
+
 

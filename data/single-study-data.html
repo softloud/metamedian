@@ -169,7 +169,7 @@ ss_data &lt;- cross(list(
 
 # Initialise simulation tibble.
 ss_data &lt;- tibble(
-  rdist = map(ss_data, c(&quot;distributions&quot;, &quot;rdist&quot;)),
+  rdist = map_chr(ss_data, c(&quot;distributions&quot;, &quot;rdist&quot;)),
   rpars = map(ss_data, c(&quot;distributions&quot;, &quot;rpars&quot;)),
   n = map(ss_data, &quot;n&quot;)
 ) %&gt;%

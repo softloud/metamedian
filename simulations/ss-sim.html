@@ -126,9 +126,6 @@ $(document).ready(function () {
 
 <div id="tasks" class="section level1">
 <h1>Tasks</h1>
-<ul>
-<li>Import data.</li>
-</ul>
 </div>
 <div id="objective" class="section level1">
 <h1>Objective</h1>
@@ -137,63 +134,61 @@ $(document).ready(function () {
 <h1>Simulation</h1>
 <div id="get-data" class="section level2">
 <h2>Get data</h2>
-<pre class="r"><code>data(&quot;ss_data&quot;) 
-ss_data %&gt;% head() %&gt;% select(-sample_stats_1, -sample_stats_2) %&gt;% knitr::kable()</code></pre>
-<table>
-<thead>
-<tr class="header">
-<th align="left">rdist</th>
-<th align="left">rpar1</th>
-<th align="left">rpar2</th>
-<th align="right">n</th>
-<th align="right">rpar1_adj</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td align="left">exp</td>
-<td align="left">1</td>
-<td align="left">NULL</td>
-<td align="right">15</td>
-<td align="right">1.5</td>
-</tr>
-<tr class="even">
-<td align="left">exp</td>
-<td align="left">1</td>
-<td align="left">NULL</td>
-<td align="right">15</td>
-<td align="right">1.5</td>
-</tr>
-<tr class="odd">
-<td align="left">exp</td>
-<td align="left">1</td>
-<td align="left">NULL</td>
-<td align="right">15</td>
-<td align="right">1.5</td>
-</tr>
-<tr class="even">
-<td align="left">exp</td>
-<td align="left">1</td>
-<td align="left">NULL</td>
-<td align="right">15</td>
-<td align="right">1.5</td>
-</tr>
-<tr class="odd">
-<td align="left">exp</td>
-<td align="left">1</td>
-<td align="left">NULL</td>
-<td align="right">15</td>
-<td align="right">1.5</td>
-</tr>
-<tr class="even">
-<td align="left">exp</td>
-<td align="left">1</td>
-<td align="left">NULL</td>
-<td align="right">15</td>
-<td align="right">1.5</td>
-</tr>
-</tbody>
-</table>
+<pre class="r"><code>get_effect &lt;- function(this_tibble) {
+  metamedian::effect_sd(
+    centre = this_tibble$median,
+    spread = this_tibble$iqr,
+    n = this_tibble$n,
+    centre_type = &quot;median&quot;,
+    spread_type = &quot;iqr&quot;
+  )
+}
+
+ss_sim &lt;- ss_data %&gt;%
+  mutate(
+    arm_1_sd = map_dbl(sample_stats_1, get_effect),
+    arm_2_sd = map_dbl(sample_stats_2, get_effect)
+  )</code></pre>
+<pre class="r"><code>ss_sim &lt;- ss_sim %&gt;% 
+  mutate(m = map_dbl(sample_stats_1, &quot;median&quot;),
+         m_var = arm_1_sd^2,
+         md = map_dbl(sample_stats_1, &quot;median&quot;) - map_dbl(sample_stats_2, &quot;median&quot;),
+         md_var = arm_1_sd^2 + arm_2_sd^2,
+         lr = log(map_dbl(sample_stats_1, &quot;median&quot;) / 
+                    map_dbl(sample_stats_2, &quot;median&quot;)),
+         lr_var = arm_1_sd^2 / map_dbl(sample_stats_1, &quot;median&quot;)^2 +
+           arm_2_sd^2 / map_dbl(sample_stats_2, &quot;median&quot;)^2)</code></pre>
+<pre class="r"><code>ss_sim &lt;- ss_sim %&gt;% # Bundle measures of centre.
+  mutate(effect_all = pmap(list(m, md, lr), .f = function(x, y, z) {
+    tibble(m = x,
+           md = y,
+           lr = z)
+  }) 
+  # ,
+  # effect_var = pmap(list(m_var, md_var, lr_var), .f = function(x, y, z) { # Bundle measures of spread.
+  #   tibble(m = x,
+  #          md = y,
+  #          lr = z)
+  # })
+  ) %&gt;% 
+  select(-m, -md, -lr,
+         # -m_var, -md_var, -lr_var
+         ) %&gt;% 
+  gather(key = &quot;measure&quot;,
+         value = &quot;effect_var&quot;,
+         m_var, md_var, lr_var) %&gt;% 
+  mutate(
+    measure = stringr::str_replace_all(measure, &quot;_var&quot;, &quot;&quot;)
+  )</code></pre>
+<pre class="r"><code># Extract effect, depending on measure.
+ss_sim &lt;- ss_sim %&gt;% 
+  mutate(test = 
+           map2_dbl(measure, 
+                    effect_all, 
+                    .f = function(this_measure, effect_df) {
+                      effect_df[this_measure] %&gt;% as.numeric()
+                    })
+         )</code></pre>
 </div>
 </div>
 
