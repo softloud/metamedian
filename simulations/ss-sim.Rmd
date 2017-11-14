@@ -1,5 +1,5 @@
 ---
-title: "Single-study simulation"
+title: "Single-study simulation data generation"
 author: "Trouble"
 date: "09/11/2017"
 output: html_document
@@ -21,11 +21,13 @@ data(ss_data)
 
 # Tasks
 
+- Include `ggeasy` in the talk.
+
 # Objective
 
 # Simulation
 
-## Get data
+## Calculate effects
 
 ```{r Get data}
 get_effect <- function(this_tibble) {
@@ -45,6 +47,7 @@ ss_sim <- ss_data %>%
   )
 
 ```
+
 
 
 ```{r Calculate effects}
@@ -94,6 +97,9 @@ ss_sim <- ss_sim %>%
          )
 ```
 
+
+# Confidence intervals
+
 ```{r Confidence intervals}
 # Calculate confidence intervals.
 ss_sim <- ss_sim %>% 
@@ -130,7 +136,7 @@ I'm going to try using predicate `.p` arguments for the firs time. This goes int
 # First I need to create something I can pass into the first arg.
 
 # How to do this the tidy way?
-ss_sim$rpar1_arg <- c()
+ss_sim$rpar1_arg <- as.numeric(0)
 ss_sim$rpar1_arg[
   ss_sim$arm_adj == "adj"
 ] <- ss_sim$rpar1_adj[
@@ -138,15 +144,26 @@ ss_sim$rpar1_arg[
 ]
 
 ss_sim$rpar1_arg[
-  ss_sim$arm_adj == "adj"
-] <- ss_sim$rpar1_adj[
-  ss_sim$arm_adj == "adj"
+  ss_sim$arm_adj == "null"
+] <- ss_sim$rpar1[
+  ss_sim$arm_adj == "null"
 ]
 
+ss_sim$rpar1_arg <- ss_sim$rpar1_arg %>% as.numeric()
+
+# Check this worked as it should:
+ss_sim$rpar1_arg %>% 
+  table(useNA = "always") %>% 
+  as_tibble() %>% 
+  knitr::kable(col.names = c("Parameter", "n"))
 
 ```
+
+
 ```{r Get other median}
-ss_sim <- ss_sim %>% 
+# Get other median.
+test <- ss_sim %>% 
+  head(1000) %>% 
   mutate(true_median_2 = pmap_dbl(
     .l = list(
       dist = rdist,
@@ -154,14 +171,101 @@ ss_sim <- ss_sim %>%
       rpar2
     ), 
     .f = function(dist, par1, par2) {
+      if (length(par2) > 2) {pars <- par1} else {pars <- list(par1, par2)}
+      
       dontpanic::any_dist(x = 0.5,
                           dist = dist,
-                          par = list(
-                            par1,
-                            par2
-                          ),
+                          par = pars,
                           type = "q")
     }
   ))
+```
+
+# Analysis of confidence intervals
+
+
+```{r Calculate true effect}
+# Calculate true effect.
+ss_sim <- ss_sim %>% 
+  mutate(
+    true_effect = pmap_dbl(
+      .l = list(
+        measure = measure,
+        m_1 = true_median,
+        m_2 = true_median_2
+      ),
+      .f = function(measure, m_1, m_2) {
+        if (measure == "m") {
+          return(m_1)
+        } else if (measure == "md") {
+          return(m_1 - m_2) 
+        } else if (measure == "lr") {
+          return(
+            log(m_1 / m_2)
+          )
+        } else {
+          return("You fucked up again, nuff nuff.")
+        }
+      }
+      
+    )
+  )
+
+# Expect that the number of those that are non-zero to be the same as the number that are zero. 
+
+ss_sim$true_effect %>% 
+  table(useNA = "always") %>% 
+  as_tibble() %>% 
+  knitr::kable(col.names = c("Relative absolute bias", "n"))
+
+ss_sim %>% 
+  filter(true_effect == 0 ) %>% nrow() / 2
+
+ss_sim %>% 
+  filter(true_effect != 0 ) %>% nrow() / 4 # Why?
+
+```
+
+```{r Simulation results}
+# Simulation results.
+ss_sim <- ss_sim %>% 
+  mutate(
+    relative_interval_width = (ci_ub - ci_lb) / true_effect,
+    relative_absolute_bias = abs(effect - true_effect) / true_effect,
+    absolute_bias = abs(effect - true_effect),
+    in_ci = ci_lb < true_effect & true_effect < ci_ub
+  )
+```
+
+```{r Summarise results}
+ss_summary <- ss_sim %>% # Summarise simulation results.
+  group_by(n, rdist, rpar1_arg, measure) %>% 
+  summarise(
+    relative_interval_width = mean(relative_interval_width, na.rm = T),
+    relative_absolute_bias = mean(relative_absolute_bias, na.rm = T),
+    interval_width = mean(ci_ub - ci_lb),
+    absolute_bias = mean(absolute_bias),
+    coverage = sum(in_ci) / ss_par[[2]]
+  )
+
+# Take a look.
+ss_summary %>% 
+  knitr::kable()
+
+# Note that dividing by 0 produces those infs - I think. Should check that.
+
+```
+
+```{r Plots}
+
+# Plot everything without relative.
+ss_summary %>% 
+  ggplot(aes(x = rdist,
+             y = coverage)) +
+  geom_point(aes(size = absolute_bias,
+                 colour = interval_width)) +
+  # ggeasy::easy_rotate_x_labels() +
+  facet_grid(n ~ measure) 
+
 ```
 

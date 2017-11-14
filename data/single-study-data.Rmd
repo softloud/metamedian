@@ -1,13 +1,13 @@
 <!-- 
 %\VignetteEngine{knitr}
-%\VignetteIndexEntry{Single study data} 
+%\VignetteIndexEntry{Single study data generation} 
 -->
 ---
 title: "Single-study data"
 author: "Charles T. Gray"
 date: `r dontpanic::title_date()`
 vignette: >
-  %\VignetteIndexEntry{Single study data generations}
+  %\VignetteIndexEntry{Single study data generation}
   %\VignetteEngine{knitr::rmarkdown}
 ---
 
@@ -41,7 +41,7 @@ We want to generate summary statistics of samples drawn from various distributio
 
 ## Set distributions
 
-```{r}
+```{r Set distributions}
 distributions <- list(
   list(rdist = "norm",
        rpars = list(mean = 50, sd = 17)),
@@ -53,12 +53,123 @@ distributions <- list(
        rpars = 10),
   list(rdist = "weibull",
        rpars = c(2, 35))
-) 
+  list(
+    rdist = "lnorm",
+    rpars = list(meanlog = 1, sdlog = 0.25)
+  )
+  # list(
+  #   rdist = "lnorm",
+  #   rpars = list(meanlog = 1.1, sdlog = 0.25)
+  # ),
+  # list(
+  #   rdist = "lnorm",
+  #   rpars = list(meanlog = 1, sdlog = 0.5)
+  # ),
+  # list(
+  #   rdist = "lnorm",
+  #   rpars = list(meanlog = 1.1, sdlog = 0.5)
+  # ),
+  # list(
+  #   rdist = "exp",
+  #   rpars = list(rate = 1)
+  # ),
+  # list(
+  #   rdist = "exp",
+  #   rpars = list(rate = 1.1)
+  # ),
+  # list(
+  #   rdist = "exp",
+  #   rpars = list(rate = 1.5)
+  # ),
+  # list(
+  #   rdist = "exp",
+  #   rpars = list(rate = 2)
+  # ),
+  # list(
+  #   rdist = "chisq",
+  #   rpars = list(df = 1)
+  # ),
+  # list(
+  #   rdist = "chisq",
+  #   rpars = list(df = 1.1)
+  # ),
+  # list(
+  #   rdist = "chisq",
+  #   rpars = list(df = 4)
+  # ),
+  # list(
+  #   rdist = "chisq",
+  #   rpars = list(df = 4.1)
+  # ),
+  # list(
+  #   rdist = "beta",
+  #   rpars = list(shape1 = 10, shape2 = 10)  
+  #   ),
+  # list(
+  #   rdist = "beta",
+  #   rpars = list(shape1 = 10.1, shape2 = 10)
+  # ),
+  # list(
+  #   rdist = "weibull",
+  #   rpars = list(shape = 1, scale = 1)
+  # ),
+  # list(
+  #   rdist = "weibull",
+  #   rpars = list(shape = 1.1, scale = 1)
+  # ),
+  # list(
+  #   rdist = "weibull",
+  #   rpars = list(shape = 2, scale = 1)
+  # ),
+  # list(
+  #   rdist = "weibull",
+  #   rpars = list(shape = 2.1, scale = 1)
+  # ),
+  # list(
+  #   rdist = "weibull",
+  #   rpars = list(shape = 10, scale = 1)
+  # ),
+  # list(
+  #   rdist = "weibull",
+  #   rpars = list(shape = 10.1, scale = 1)
+  # ),
+  # list(
+  #   rdist = "norm",
+  #   rpars = list(mean = 3, sd = 1)
+  # ),
+  # list(
+  #   rdist = "norm",
+  #   rpars = list(mean = 1, sd = 0.2)
+  # ),
+  # list(
+  #   rdist = "norm",
+  #   rpars = list(mean = 1.1, sd = 0.2)
+  # ),
+  # list(
+  #   rdist = "gamma",
+  #   rpars = list(shape = 5, rate = 1)
+  # ),
+  # list(
+  #   rdist = "gamma",
+  #   rpars = list(shape = 5.1, rate = 1)
+  # ),
+  #   list( # Can't calculate sd for cauchy.
+  #   rdist = "cauchy",
+  #   rpars = list(location = 2, scale = 0.5)
+  # ),
+  #   list(
+  #   rdist = "cauchy",
+  #   rpars = list(location = 2, scale = 1)
+  # )
+)
+
+
+
 ```
 
 ## Create trials
 
-```{r}
+```{r Set parameters}
 # Set parameter sets.
 ss_data <- cross(list(
   trial = seq(1, trials),
@@ -69,12 +180,13 @@ ss_data <- cross(list(
 ```
 
 
-```{r Generated data}
+```bcv h
 # Initialise simulation tibble.
 ss_data <- tibble(
   rdist = map_chr(ss_data, c("distributions", "rdist")),
   rpars = map(ss_data, c("distributions", "rpars")),
-  n = map(ss_data, "n")
+  n = map_dbl(ss_data, "n"),
+  trial = map_int(ss_data, "trial")
 ) %>%
   mutate(true_median = # Calculate true median.
            pmap_dbl(
@@ -84,10 +196,50 @@ ss_data <- tibble(
   ), # Create adjustment on first parameter for different arms.
   rpar1_adj = map_dbl(rpars, 1) + 0.1,
   rpar1 = map_dbl(rpars, 1),
-  rpar2 = map(rpars, 2)
+  rpar2 = map(rpars, 2),
+  true_mean = map2_dbl(rdist, rpars, dontpanic::get_mean)
   )
 
 ```
+
+### Check that every row is distinct
+
+```{r }
+ss_data %>% distinct() %>% nrow() == nrow(ss_data)
+```
+
+```{r}
+ss_data %>% 
+  count(rdist, as.character(rpars), n) %>% 
+  filter(nn != 10)
+```
+
+
+### Create zero-$\Delta$ and non-zero-$\Delta$ adjustment
+
+```{r Adjustment}
+nrows_ss_data <- ss_data %>% nrow()
+
+ss_data <- ss_data %>% 
+  mutate(gather_arg = rpar1) %>% 
+  gather(key = "adj_status",
+         value = "rpar1_arm2",
+         gather_arg, rpar1_adj) 
+
+# Check that I've doubled the number of observations.
+
+ss_data %>% nrow() == nrows_ss_data * 2
+```
+
+```{r}
+
+ss_data %>% 
+  count(rdist, as.character(rpars), n, adj_status) %>% 
+  filter(nn != 10)
+
+
+```
+
 
 ## Generate samples
 
@@ -104,31 +256,31 @@ ss_data <- ss_data %>%
                             par = c(rpar1, rpar2))
     }
   ),
-  sample_2_adj = pmap(
+  sample_2 = pmap(
     .l = list(rdist,
-              rpar1_adj,
+              rpar1_arm2,
               rpar2,
               n),
-    .f = function(rdist, rpar1_adj, rpar2, n) {
+    .f = function(rdist, rpar1_arm2, rpar2, n) {
       dontpanic::get_sample(n = n,
                             dist = rdist,
-                            par = c(rpar1_adj, rpar2))
-    }
-  ),
-    sample_2_null = pmap(
-    .l = list(rdist,
-              rpar1,
-              rpar2,
-              n),
-    .f = function(rdist, rpar1, rpar2, n) {
-      dontpanic::get_sample(n = n,
-                            dist = rdist,
-                            par = c(rpar1, rpar2))
+                            par = c(rpar1_arm2, rpar2))
     }
   )
   )
 
 ```
+
+
+```{r}
+
+ss_data %>% 
+  count(rdist, as.character(rpars), n, adj_status) %>% 
+  filter(nn != 10) %>% nrow()
+
+
+```
+
 
 # Calculate summary statistics
 
@@ -152,20 +304,20 @@ sample_summary <- function(sample) {
 ss_data <- ss_data %>%
   mutate(
     sample_stats_1 = map(sample_1, sample_summary),
-    sample_stats_2_null = map(sample_2_null, sample_summary),
-    sample_stats_2_adj = map(sample_2_adj, sample_summary)
-  ) %>%
-  select(-sample_1,-sample_2_null,-sample_2_adj)
+    sample_stats_2 = map(sample_2, sample_summary)) %>%
+  select(-sample_1,-sample_2)
 
 ```
 
-```{r Gather}
-ss_data <- ss_data %>% 
-  gather(key = "arm_adj",
-         value = "sample_stats_2",
-         sample_stats_2_adj, sample_stats_2_null)
-```
 
+```{r}
+
+ss_data %>% 
+  count(rdist, as.character(rpars), n, adj_status) %>% 
+  filter(nn != 10) %>% nrow()
+
+
+```
 
 ```{r Write ss data to package}
 ss_par <- list(
@@ -176,4 +328,5 @@ ss_par <- list(
 devtools::use_data(ss_par, overwrite = TRUE)
 devtools::use_data(ss_data, overwrite = TRUE)
 ```
+
 
